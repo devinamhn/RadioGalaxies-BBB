@@ -1,0 +1,35 @@
+[model]
+base: 'Classifier_ConvBBB'            	# network: [ Classifier_BBB,  Classifier_ConvBBB]
+early_stopping: True            # early stopping [True/False]
+
+[priors]
+prior: 'GaussianMixture'		# Gaussian, GaussianMixture, Cauchy, Laplacian, LaplaceMixture
+prior_init: '0.75, 1, 0.0009'		#initialisation of prior '5e-1, 1e-1, 1e-3', '0, 1e-2'	
+
+
+[data]
+dataset: 'MBFRConf'		# dataset class [MNIST, MBFRConfident, MBFRConf+Uncert]
+datadir: './dataMiraBest'       # name of directory to download data into
+datamean: 0.0031               # mean for normalisation MNIST[0.1307, 0.3081], MiraBest[0.0031, 0.0350]
+datastd: 0.0350             # stdev for normalisation  
+
+[training]
+batch_size: 50		# [128, 50]
+frac_val:0.2                 	# for train:val split
+epochs: 500                     # total number of epochs
+imsize: 150                     	# pixels on side of image [28, 150]
+hidden_size: 800		# number of hidden units per layer - mlp
+num_classes: 2                 # number of target classes [10, 2]
+lr0: 5e-5                # initial learning rate with lr scheduler
+#optimizer: 'SGD'
+momentum: 0.9
+decay: 1e-5
+reduction: "sum"
+burnin: None
+temp: 1e-2	 #[00: 1, 0:5e-1, 1:1e-1, 2:5e-2, 3:1e-2, 4:5e-3, 5:1e-3, 6:5e-4, 7:1e-4, 8: 5e-5, 9:1e-5, 10:2e-1, 11:2e-2,12:2e-3, 13:2e-4 14:2e-5]
+kernel_size: 5
+
+[output]
+filename_uncert: 'mirabest_uncert.csv'
+test_data: 'MBFRConfident' 			#{'MBFRConfident', 'MBFRUncertain', 'MBHybrid'} for uncert calc
+pruning: 'Unpruned'
