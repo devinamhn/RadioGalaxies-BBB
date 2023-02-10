@@ -309,7 +309,11 @@ print(np.std(err_arr))
 
 
 #%%####### uncertainty quantification #####
-
+samples = np.transpose(samples)
+import corner
+corner.corner(samples)
+#%%
+get_samples(model, n_samples = 10000, n_params = 5, log_space = False)
 #%% 
 {'MBFRConfident', 'MBFRUncertain', 'MBHybrid'} 
 test_data_uncert = 'MBFRConfident'
