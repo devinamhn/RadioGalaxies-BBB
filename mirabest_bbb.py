@@ -1,4 +1,3 @@
-#%%
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -30,11 +29,11 @@ from utils import *
 
 from pathlib import Path
 from datamodules import MiraBestDataModule
-#%%
+
 #vars = parse_args()
 config_dict, config = parse_config('config1.txt')
 print(config_dict, config)
-#%%
+
 #prior
 prior = config_dict['priors']['prior']
 prior_var = torch.tensor([float(i) for i in config_dict['priors']['prior_init'].split(',')])
@@ -64,12 +63,13 @@ early_stopping = config_dict['model']['early_stopping']
 filename = config_dict['output']['filename_uncert']
 test_data_uncert = config_dict['output']['test_data']
 pruning_ = config_dict['output']['pruning']
-#%%  #not reqd for final model LeNet5+ only for ClassifierBBB (ie BBB without conv layers)
+
+#not reqd for final model LeNet5+ only for ClassifierBBB (ie BBB without conv layers)
 #input_size = imsize*imsize
 #hidden_size = hidden_size
 #output_size = nclass
 
-#%% load data
+#load data
 datamodule = MiraBestDataModule(config_dict, config)
 train_loader, validation_loader, train_sampler, valid_sampler = datamodule.train_val_loader()
 test_loader = datamodule.test_loader()
@@ -80,12 +80,12 @@ num_batches_valid = len(validation_loader)
 num_batches_test = len(test_loader)
 print(num_batches_train,num_batches_valid, num_batches_test)
 
-#%% check if a GPU is available:
+#check if a GPU is available:
 use_cuda = torch.cuda.is_available()
 device = torch.device("cuda" if use_cuda else "cpu")
 kwargs = {'num_workers': 1, 'pin_memory': True} if use_cuda else {}
 print("Device: ",device)
-#%%
+
 input_ch = 1
 out_ch = nclass #y.view(-1)
 kernel_size = kernel_size
@@ -95,16 +95,9 @@ model = Classifier_ConvBBB(input_ch, out_ch, kernel_size, prior_var, prior).to(d
 #model = Classifier_BBB(input_size, hidden_size, output_size, prior_var, prior, imsize).to(device)
 
 print(summary(model, input_size=(1, 150, 150)))
-#%% to be removed - all of this is happening in the loop already
-
-#model = Classifier_BBB(input_size, hidden_size, output_size).to(device)
-#print(model)
-#optimizer = optim.Adam(model.parameters(), lr = learning_rate, weight_decay = weight_decay)
-#scheduler = ReduceLROnPlateau(optimizer=optimizer, mode= 'min', factor=0.95, patience=3, verbose=True)
-#%%
 #learning_rate = torch.tensor(1e-4) # Initial learning rate {1e-3, 1e-4, 1e-5} -- use larger LR with reduction = 'sum' 
-
-#%% multiple runs saved in csv files
+epochs = 10
+# multiple runs saved in csv files
 for i in range (1):#(1, 5):
     model = Classifier_ConvBBB(input_ch, out_ch, kernel_size, prior_var, prior).to(device)
     #model = Classifier_BBB(input_size, hidden_size, output_size, prior_var, prior, imsize).to(device)
@@ -210,99 +203,102 @@ for i in range (1):#(1, 5):
         torch.save(model.state_dict(), "model.pt") 
         
     #os.remove("./model.pt")
-#%%
+
 print(100.*(1 - best_acc)) 
 print(best_epoch)
 
-#%%
+
 ## plots
-pl.figure(dpi=200)
+plt.figure(dpi=200)
 #pl.plot(epoch_trainloss, label='train loss')
-pl.plot(epoch_testloss, label='val loss')
-pl.legend(loc='upper right')
-pl.grid(True)
+plt.plot(epoch_testloss, label='val loss')
+plt.legend(loc='upper right')
+plt.grid(True)
 #pl.ylim(-0.05,0.2) 
 #pl.yscale('log')
 #pl.axvline(13, linestyle='--', color='g',label='Early Stopping Checkpoint')
-pl.xlabel('Epochs')
-pl.ylabel('Loss')
-pl.show()
-#%%
-pl.figure(dpi=200)
-#pl.plot(epoch_trainloss_complexity, label='train loss')
-pl.plot(epoch_testloss_complexity, label='val loss')
-pl.legend(loc='upper right')
-pl.grid(True)
-pl.xlabel('Epochs')
-pl.ylabel('Weighted complexity cost')
-pl.show()
-#%%
-pl.figure(dpi=200)
-#pl.plot(epoch_trainloss_complexity_conv, label='train loss')
-pl.plot(epoch_testloss_complexity_conv, label='val loss')
-pl.legend(loc='upper right')
-pl.grid(True)
-pl.xlabel('Epochs')
-pl.ylabel('Weighted complexity cost - conv layers')
-pl.show()
+plt.xlabel('Epochs')
+plt.ylabel('Loss')
+plt.savefig('./exps/temp/testloss.png')
 
-pl.figure(dpi=200)
+plt.figure(dpi=200)
+#pl.plot(epoch_trainloss_complexity, label='train loss')
+plt.plot(epoch_testloss_complexity, label='val loss')
+plt.legend(loc='upper right')
+plt.grid(True)
+plt.xlabel('Epochs')
+plt.ylabel('Weighted complexity cost')
+plt.savefig('./exps/temp/testloss_complexity.png')
+
+plt.figure(dpi=200)
+#pl.plot(epoch_trainloss_complexity_conv, label='train loss')
+plt.plot(epoch_testloss_complexity_conv, label='val loss')
+plt.legend(loc='upper right')
+plt.grid(True)
+plt.xlabel('Epochs')
+plt.ylabel('Weighted complexity cost - conv layers')
+plt.savefig('./exps/temp/testloss_complexity_conv.png')
+
+plt.figure(dpi=200)
 #pl.plot(epoch_trainloss_complexity_linear, label='train loss')
-pl.plot(epoch_testloss_complexity_linear, label='val loss')
-pl.legend(loc='upper right')
-pl.grid(True)
-pl.xlabel('Epochs')
-pl.ylabel('Weighted complexity cost - linear layers')
-pl.show()
-#%%
-pl.figure(dpi=200)
-pl.plot(epoch_trainloss_loglike, label='train loss')
-pl.plot(epoch_testloss_loglike, label='val loss')
-pl.legend(loc='upper right')
-pl.grid(True)
-pl.xlabel('Epochs')
-pl.ylabel('negative log likelihood cost')
-pl.show()
-#%%
-pl.figure(dpi=200)
-pl.plot(epoch_testerr, label = "valid error")
-pl.plot((1-np.array(epoch_trainaccs))*100, label = "train error")
-pl.legend(loc='upper right')
+plt.plot(epoch_testloss_complexity_linear, label='val loss')
+plt.legend(loc='upper right')
+plt.grid(True)
+plt.xlabel('Epochs')
+plt.ylabel('Weighted complexity cost - linear layers')
+plt.savefig('./exps/temp/testloss_complexity_linear.png')
+
+plt.figure(dpi=200)
+plt.plot(epoch_trainloss_loglike, label='train loss')
+plt.plot(epoch_testloss_loglike, label='val loss')
+plt.legend(loc='upper right')
+plt.grid(True)
+plt.xlabel('Epochs')
+plt.ylabel('negative log likelihood cost')
+plt.savefig('./exps/temp/loglike.png')
+
+plt.figure(dpi=200)
+plt.plot(epoch_testerr, label = "valid error")
+plt.plot((1-np.array(epoch_trainaccs))*100, label = "train error")
+plt.legend(loc='upper right')
 #pl.ylim(1.3,  5)
-pl.grid(True)
-pl.xlabel('Epochs')
-pl.ylabel('error(%)')
-pl.show()
-#%%
-density, db_SNR = density_snr_conv(model)
-#%%
-plt.figure(dpi=200)
-plt.xlabel('Weight')
 plt.grid(True)
-sns.set_palette("colorblind")
-sns.kdeplot(density, x="weight", fill=True)
-#%%
-#plot density and CDF of SNR(dB)
-plt.figure(dpi=300)
-plt.xlabel('Signal-to-Noise (dB)')
-plt.ylabel('Density')
-#plt.xlim((-35,15))
-plt.grid(True)
-sns.set_style("whitegrid", {'axes.grid' : True})
-sns.kdeplot(db_SNR, x="SNR", fill=True,alpha=0.5)
-#%%
-plt.figure(dpi=200)
-plt.ylabel('CDF')
-plt.xlabel('Signal-to-Noise')
-sns.kdeplot(db_SNR, x="SNR", fill=False,alpha=0.5, cumulative=True, color= 'black')
-#%%
+plt.xlabel('Epochs')
+plt.ylabel('error(%)')
+plt.savefig('./exps/temp/error.png')
+
+# #%%
+# density, db_SNR = density_snr_conv(model)
+# #%%
+# plt.figure(dpi=200)
+# plt.xlabel('Weight')
+# plt.grid(True)
+# sns.set_palette("colorblind")
+# sns.kdeplot(density, x="weight", fill=True)
+# #%%
+# #plot density and CDF of SNR(dB)
+# plt.figure(dpi=300)
+# plt.xlabel('Signal-to-Noise (dB)')
+# plt.ylabel('Density')
+# #plt.xlim((-35,15))
+# plt.grid(True)
+# sns.set_style("whitegrid", {'axes.grid' : True})
+# sns.kdeplot(db_SNR, x="SNR", fill=True,alpha=0.5)
+# #%%
+# plt.figure(dpi=200)
+# plt.ylabel('CDF')
+# plt.xlabel('Signal-to-Noise')
+# sns.kdeplot(db_SNR, x="SNR", fill=False,alpha=0.5, cumulative=True, color= 'black')
+# #%%
+
+#calculate test error 
 #model = Classifier_BBB(input_size, hidden_size, output_size, prior_var, prior, imsize).to(device)
 model = Classifier_ConvBBB(input_ch, out_ch, kernel_size, prior_var, prior).to(device)
-#%%
+
 model.load_state_dict(torch.load("model.pt"))
 test_err= test(model, test_loader, device, T, burnin, reduction, pac)
 print(test_err)  
-#%%
+
 err_arr = []
 for i in range(100):
     test_err = test(model, test_loader, device, T, burnin, reduction, pac)
@@ -312,5 +308,5 @@ print(np.mean(err_arr))
 print(np.std(err_arr))
 
 
-#%%
-get_samples(model, n_samples = 10000, n_params = 5, log_space = False)
+#
+#get_samples(model, n_samples = 10000, n_params = 5, log_space = False)
