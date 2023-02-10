@@ -12,6 +12,16 @@ import torchvision.transforms as transforms
 import torch.nn.functional as F
 
 #%%
+def get_samples(model, n_samples, n_params, log_space):
+
+    samples = model.posterior_samples(n_samples, n_params, log_space)
+    samples = np.transpose(samples)
+    #print(samples.shape)
+    
+    import corner
+    corner.corner(samples, quantiles=[0.16, 0.5, 0.84],show_titles=True)
+    
+#%%
 def density_snr(model):
     device = "cpu"
     model = model.to(device="cpu")
