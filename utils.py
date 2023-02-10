@@ -87,7 +87,7 @@ def density_snr_conv(model):
     model = model.to(device)
     return mu_post_w, db_SNR
 
-def train(model, train_loader, optimizer, device, T, burnin, reduction):
+def train(model, train_loader, optimizer, device, T, burnin, reduction, pac):
 
     train_loss, train_accs=[],[]; acc = 0
     train_loss_c, train_loss_l = [],[]
@@ -124,7 +124,7 @@ def train(model, train_loader, optimizer, device, T, burnin, reduction):
       
     return train_loss, train_loss_c, train_loss_l, train_accs,  trainloss_c_conv,  trainloss_c_linear
 
-def validate(model, validation_loader, device, T, burnin, reduction, epoch, prior, prior_var):
+def validate(model, validation_loader, device, T, burnin, reduction, epoch, prior, prior_var, pac):
     #conv
     num_batches_valid = len(validation_loader)
     input_ch = 1
@@ -138,6 +138,7 @@ def validate(model, validation_loader, device, T, burnin, reduction, epoch, prio
     output_size = 2
     imsize=150
     '''
+    #load model checkpoint
     if(epoch==0):
         pass 
     else:
@@ -162,7 +163,7 @@ def validate(model, validation_loader, device, T, burnin, reduction, epoch, prio
             #mlp
             #loss, pred, complexity_cost, likelihood_cost = model.sample_elbo(x_test, y_test, 1, i, num_batches_valid, samples_batch=len(y_test), T=T, burnin=burnin, reduction=reduction)
             
-            acc = (pred.mean(dim=0).argmax(dim=-1) == y_test).to(torch.float32).mean()
+            acc = (pred.mean(dim=0).argmax(dim=-1) == y_test).to(torch.float32).mean() #why did i do pred.mean(dim=0)?
             
             test_loss.append(loss.item()*len(y_test))
             test_loss_c.append(complexity_cost.item()*len(y_test))
@@ -177,7 +178,7 @@ def validate(model, validation_loader, device, T, burnin, reduction, epoch, prio
      
         return test_loss, test_loss_c, test_loss_l, test_accs, testloss_c_conv,  testloss_c_linear
     
-def test(model, test_loader, device, T, burnin, reduction):
+def test(model, test_loader, device, T, burnin, reduction, pac):
 
     
     num_batches_test = len(test_loader)
@@ -207,13 +208,15 @@ def test(model, test_loader, device, T, burnin, reduction):
     
             test_accs.append(acc.mean().item()*len(y_test))
             test_sampler = test_sampler + len(y_test)
+            
+            #samples = model.posterior_samples(n_samples = 10000)
 
     
     
     testaccs= np.sum(test_accs)/test_sampler
     testerr = (100.*(1 - np.sum(test_accs)/test_sampler))
     testloss = np.sum(test_loss)/test_sampler
-    return testerr
+    return testerr#, samples
 #%%
 def parse_args():
     """
