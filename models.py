@@ -160,13 +160,14 @@ class Classifier_ConvBBB(nn.Module):
         return F.nll_loss(outputs, target, reduction=reduction)
         
     # avg cost function over no. of samples = {1, 2, 5, 10}
-    def sample_elbo(self, input, target, samples, batch, num_batches, samples_batch, T=1.0, burnin=None, reduction = "sum",logit= False):
+    def sample_elbo(self, input, target, samples, batch, num_batches, samples_batch, T=1.0, burnin=None, reduction = "sum", logit= False, pac = False):
         
         self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
         
         outputs = torch.zeros(samples, target.shape[0], self.out_dim).to(self.device)
         #pac
-        #outputs1 = torch.zeros(samples, target.shape[0], self.out_dim).to(self.device)
+        if(pac == True):
+            outputs1 = torch.zeros(samples, target.shape[0], self.out_dim).to(self.device)
         
         log_priors_conv = torch.zeros(samples).to(self.device)
         log_priors_linear = torch.zeros(samples).to(self.device)
@@ -178,7 +179,8 @@ class Classifier_ConvBBB(nn.Module):
         
         log_likes = torch.zeros(samples).to(self.device)
         #pac
-        #log_likes_1 = torch.zeros(samples).to(self.device)
+        if(pac == True):
+            log_likes_1 = torch.zeros(samples).to(self.device)
         
         for i in range(samples):
             
@@ -187,8 +189,10 @@ class Classifier_ConvBBB(nn.Module):
                
             else:
                 outputs[i] = self(input, logit = False)
+                
                 #pac
-                #outputs1[i] = self(input, logit=False) 
+                if(pac == True):
+                    outputs1[i] = self(input, logit=False) 
                 
             log_priors_conv[i],log_priors_linear[i] = self.log_prior()
             log_priors[i] = log_priors_conv[i] + log_priors_linear[i]
@@ -198,7 +202,8 @@ class Classifier_ConvBBB(nn.Module):
             log_likes[i] = self.log_like(outputs[i,:,:], target, reduction)
             
             #pac
-            #log_likes_1[i] = self.log_like(outputs1[i,:,:], target, reduction)
+            if(pac == True):
+                log_likes_1[i] = self.log_like(outputs1[i,:,:], target, reduction)
             
         
         # the mean of a sum is the sum of the means:
@@ -207,12 +212,15 @@ class Classifier_ConvBBB(nn.Module):
         log_like = log_likes.mean()
         
         #pac
-        #log_like_1 = log_likes_1.mean()
+        if(pac == True):
+            log_like_1 = log_likes_1.mean()
         
         log_prior_conv = log_priors_conv.mean()
         log_prior_linear = log_priors_linear.mean()
         log_post_conv = log_posts_conv.mean()
         log_post_linear = log_posts_linear.mean()
+        
+        #print(self.out.w_post.sample())
         
      
         if burnin=="blundell":
@@ -228,14 +236,13 @@ class Classifier_ConvBBB(nn.Module):
 
         loss = frac*(log_post - log_prior) + log_like
         
-        #print("loss before variance term", loss)
         
         complexity_cost = frac*(log_post - log_prior)
         likelihood_cost = log_like
         
         #uncomment for pac
-        '''
-        if(self.training == True):
+        
+        if(pac == True and self.training == True):
             #print("training")
             variance=[]
             #replacing all tensors with np arrays
@@ -261,7 +268,7 @@ class Classifier_ConvBBB(nn.Module):
             pass
            
             
-        '''
+    
         
         complexity_conv = frac*(log_post_conv - log_prior_conv)
         complexity_linear = frac*(log_post_linear - log_prior_linear)
