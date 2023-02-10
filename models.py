@@ -69,13 +69,14 @@ class Classifier_BBB(nn.Module):
        
             log_priors[i] = self.log_prior()
             log_posts[i] = self.log_post()
+
             log_likes[i] = self.log_like(outputs[i,:,:], target, reduction)
            
         # the mean of a sum is the sum of the means:
         log_prior = log_priors.mean()
         log_post = log_posts.mean()
         log_like = log_likes.mean()
-   
+
         if burnin=="blundell":
             frac = 2**(num_batches - (batch + 1))/2**(num_batches - 1)
         elif burnin==None:
@@ -158,6 +159,26 @@ class Classifier_ConvBBB(nn.Module):
     def log_like(self,outputs,target, reduction):
         #log P(D|w)
         return F.nll_loss(outputs, target, reduction=reduction)
+    
+    def posterior_samples(self, n_samples, n_params, log_space):
+        print(self.out.w_post.sample().shape)
+        
+        samples = np.zeros((n_params,n_samples))
+        print(self.out.log_prior)
+        #print(out)
+        
+        if(log_space == True):
+        
+            for j in range(n_params):
+                for i in range(n_samples):
+                    samples[j][i] = self.out.log_prior #F.log_softmax(self.out, dim = -1)[0][j]
+          
+        else:
+            for j in range(n_params):
+                for i in range(n_samples):
+                    samples[j][i] = self.out.w_post.sample()[0][j] #self.out.w_post.sample()[0][j]
+            
+        return samples
         
     # avg cost function over no. of samples = {1, 2, 5, 10}
     def sample_elbo(self, input, target, samples, batch, num_batches, samples_batch, T=1.0, burnin=None, reduction = "sum", logit= False, pac = False):
