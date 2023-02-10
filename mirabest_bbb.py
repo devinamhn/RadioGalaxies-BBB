@@ -33,16 +33,18 @@ from datamodules import MiraBestDataModule
 #%%
 #vars = parse_args()
 config_dict, config = parse_config('config1.txt')
-
+print(config_dict, config)
+#%%
 #prior
 prior = config_dict['priors']['prior']
 prior_var = torch.tensor([float(i) for i in config_dict['priors']['prior_init'].split(',')])
 
 #training 
-batch_size     = config_dict['training']['batch_size']
-validation_split = config_dict['training']['frac_val']
+
+#imsize         = config_dict['training']['imsize']
 epochs         = config_dict['training']['epochs']
-imsize         = config_dict['training']['imsize']
+
+
 hidden_size    = config_dict['training']['hidden_size']
 nclass         = config_dict['training']['num_classes']
 learning_rate  = torch.tensor(config_dict['training']['lr0']) # Initial learning rate {1e-3, 1e-4, 1e-5} -- use larger LR with reduction = 'sum' 
@@ -52,6 +54,7 @@ reduction      = config_dict['training']['reduction']
 burnin         = config_dict['training']['burnin']
 T              = config_dict['training']['temp']
 kernel_size    = config_dict['training']['kernel_size']
+pac            = config_dict['training']['pac']
 
 base           = config_dict['model']['base']
 early_stopping = config_dict['model']['early_stopping']
@@ -92,13 +95,14 @@ model = Classifier_ConvBBB(input_ch, out_ch, kernel_size, prior_var, prior).to(d
 #model = Classifier_BBB(input_size, hidden_size, output_size, prior_var, prior, imsize).to(device)
 
 print(summary(model, input_size=(1, 150, 150)))
-#%%
+#%% to be removed - all of this is happening in the loop already
+
 #model = Classifier_BBB(input_size, hidden_size, output_size).to(device)
-print(model)
-optimizer = optim.Adam(model.parameters(), lr = learning_rate, weight_decay = weight_decay)
-scheduler = ReduceLROnPlateau(optimizer=optimizer, mode= 'min', factor=0.95, patience=3, verbose=True)
+#print(model)
+#optimizer = optim.Adam(model.parameters(), lr = learning_rate, weight_decay = weight_decay)
+#scheduler = ReduceLROnPlateau(optimizer=optimizer, mode= 'min', factor=0.95, patience=3, verbose=True)
 #%%
-learning_rate = torch.tensor(1e-4) # Initial learning rate {1e-3, 1e-4, 1e-5} -- use larger LR with reduction = 'sum' 
+#learning_rate = torch.tensor(1e-4) # Initial learning rate {1e-3, 1e-4, 1e-5} -- use larger LR with reduction = 'sum' 
 
 #%% multiple runs saved in csv files
 for i in range (1):#(1, 5):
@@ -108,7 +112,7 @@ for i in range (1):#(1, 5):
     optimizer = optim.Adam(model.parameters(), lr = learning_rate)
     scheduler = ReduceLROnPlateau(optimizer=optimizer, mode= 'min', factor=0.95, patience=3, verbose=False)
 
-    epochs = 500
+    #epochs = 500
     
     epoch_trainaccs, epoch_testaccs = [], []
     epoch_trainloss, epoch_testloss = [], []
@@ -127,7 +131,7 @@ for i in range (1):#(1, 5):
     _bestacc = 0.
     
     rows = ['epoch', 'epoch_trainloss', 'epoch_trainloss_loglike', 'epoch_trainloss_complexity', 'epoch_trainerr','epoch_testloss', 'epoch_testloss_loglike', 'epoch_testloss_complexity', 'epoch_testerr']
-    csvfile = "model_GMM_exp1_"+ str(i) +".csv"
+    csvfile = "model_lap_exp1_"+ str(i) +".csv" #replace with f string
     
     with open(csvfile, 'w+', newline="") as f_out:
             writer = csv.writer(f_out, delimiter=',')
@@ -135,16 +139,16 @@ for i in range (1):#(1, 5):
             
     for epoch in range(epochs):
     
-        train_loss, train_loss_c, train_loss_l, train_accs, train_complexity_conv, train_complexity_linear = train(model, train_loader, optimizer, device, T, burnin, reduction)
+        train_loss, train_loss_c, train_loss_l, train_accs, train_complexity_conv, train_complexity_linear = train(model, train_loader, optimizer, device, T, burnin, reduction, pac)
             
         print('Epoch: {}, Train Loss: {}, Train Accuracy: {}, NLL: {}, Complexity: {}'.format(epoch, np.sum(train_loss)/len(train_sampler), np.sum(train_accs)/len(train_sampler), np.sum(train_loss_l)/len(train_sampler), np.sum(train_loss_c)/len(train_sampler)))
         
         
-        test_loss, test_loss_c, test_loss_l, test_accs, test_complexity_conv, test_complexity_linear = validate(model, validation_loader, device, T, burnin, reduction, epoch, prior, prior_var)
+        test_loss, test_loss_c, test_loss_l, test_accs, test_complexity_conv, test_complexity_linear = validate(model, validation_loader, device, T, burnin, reduction, epoch, prior, prior_var, pac)
     
         print('Epoch: {}, Test Loss: {}, Test Accuracy: {}, Test Error: {}, NLL: {}, Complexity:{}'.format(epoch, np.sum(test_loss)/len(valid_sampler), np.sum(test_accs)/len(valid_sampler), 100.*(1 - np.sum(test_accs)/len(valid_sampler)), np.sum(test_loss_l)/len(valid_sampler), np.sum(test_loss_c)/len(valid_sampler)))
         
-    
+        '''
         #save density and snr
         if(epoch % 100 ==0 ):
             density, db_SNR = density_snr_conv(model) #density_snr(model)            
@@ -152,7 +156,7 @@ for i in range (1):#(1, 5):
                 pickle.dump(density, fp)
             with open('model_'+str(i)+ 'snr' + str(epoch) + '.txt', "wb") as fp:
                 pickle.dump(db_SNR, fp)
-        
+        '''
         epoch_trainaccs.append(np.sum(train_accs)/len(train_sampler))
         epoch_testaccs.append(np.sum(test_accs)/len(valid_sampler))
         epoch_trainerr.append(100.*(1 - np.sum(train_accs)/len(train_sampler)))
@@ -294,14 +298,14 @@ sns.kdeplot(db_SNR, x="SNR", fill=False,alpha=0.5, cumulative=True, color= 'blac
 #%%
 #model = Classifier_BBB(input_size, hidden_size, output_size, prior_var, prior, imsize).to(device)
 model = Classifier_ConvBBB(input_ch, out_ch, kernel_size, prior_var, prior).to(device)
-
+#%%
 model.load_state_dict(torch.load("model.pt"))
-test_err = test(model, test_loader, device, T, burnin, reduction)
+test_err= test(model, test_loader, device, T, burnin, reduction, pac)
 print(test_err)  
 #%%
 err_arr = []
 for i in range(100):
-    test_err = test(model, test_loader, device, T, burnin, reduction)
+    test_err = test(model, test_loader, device, T, burnin, reduction, pac)
     err_arr.append(test_err)
             
 print(np.mean(err_arr))
