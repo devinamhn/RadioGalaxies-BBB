@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torch.distributions import Normal
+from torch.distributions import Normal, Laplace
 import numpy as np
 from priors import GaussianPrior, GMMPrior, LaplacePrior, CauchyPrior, LaplaceMixture
 
@@ -59,25 +59,70 @@ class Linear_BBB(nn.Module):
     def forward(self, input):
         """
           Optimization process
+          
         """
+        '''
+        
+        size = self.w_mu.shape
+        print(size, size[0])
+        
+        size_b = self.b_mu.shape
+        print(size_b, size_b[0])
+        
+        r = torch.randn(size[0]).to(self.device)
+        
+        
+        #sample weights
+        w_epsilon = Normal(0,1).sample(self.w_mu.shape).to(self.device)
+        #sample bias
+        b_epsilon = Normal(0,1).sample(self.b_mu.shape).to(self.device)
+        
+        w_norm = torch.linalg.norm(w_epsilon).unsqueeze(1)
+        #print(w_epsilon.view(size[0], -1).shape)
+        #if(len(size)==2):
+        #    #w_norm = torch.norm(w_epsilon.view(size[0], -1), p =2, dim =1 ).unsqueeze(1)
+        #    
+        #    r = r.unsqueeze(1)
+            
+            
+        self.w = self.w_mu + torch.exp(self.w_rho) * (w_epsilon/w_norm) *r
+        #self.w = self.w_mu + torch.exp(self.w_rho) * w_epsilon
+        
+
+        b_norm = torch.norm(b_epsilon, p =2, dim =1 ).unsqueeze(1)
+        self.b = self.b_mu + torch.exp(self.b_rho) * (b_epsilon/b_norm) *r
+        #self.b = self.b_mu + torch.exp(self.b_rho) * b_epsilon 
+        
+        '''
         #sample weights
         w_epsilon = Normal(0,1).sample(self.w_mu.shape).to(self.device)
         self.w = self.w_mu + torch.exp(self.w_rho) * w_epsilon
         
+        
         #sample bias
         b_epsilon = Normal(0,1).sample(self.b_mu.shape).to(self.device)
-        self.b = self.b_mu + torch.exp(self.b_rho) * b_epsilon
+        self.b = self.b_mu + torch.exp(self.b_rho) * b_epsilon 
+        
+        
         
         #record prior
         w_log_prior = self.prior.log_prob(self.w)
         b_log_prior = self.prior.log_prob(self.b)
         self.log_prior = torch.sum(w_log_prior) + torch.sum(b_log_prior) 
+        
+        #abs(torch.randn(1)) sample from unit Normal
        
         #record variational_posterior - log q(w|theta)
         self.w_post = Normal(self.w_mu.data, torch.exp(self.w_rho))
         self.b_post = Normal(self.b_mu.data, torch.exp(self.b_rho))
         self.log_post = self.w_post.log_prob(self.w).sum() + self.b_post.log_prob(self.b).sum()
         
+        ##print('new layer/minibatch')
+        #print(self.w_post.log_prob(self.w).shape)
+        ##print('posterior weights')
+        ##print(self.w_post.log_prob(self.w))
+        #print('not log posterior weights')
+        #print(self.w_post.sample())
         
         return F.linear(input, self.w, self.b)
 
@@ -135,14 +180,31 @@ class Conv_BBB(nn.Module):
         
       
     def forward(self, input):
+        r = abs(torch.randn(1)) 
+        
+        
+        '''                
+        size = self.w_mu.shape
+        print(size, size[0])
+        
+        size_b = self.b_mu.shape
+        print(size_b, size_b[0])
+        '''        
         
         #sample weights
         w_epsilon = Normal(0,1).sample(self.w_mu.shape).to(self.device)
-        self.w = self.w_mu + torch.exp(self.w_rho) * w_epsilon
+        #w_norm = torch.norm(w_epsilon, p =2, dim =1 ).unsqueeze(1).unsqueeze(1).unsqueeze(
+        #    1).unsqueeze(1)
         
+        #self.w = self.w_mu + torch.exp(self.w_rho) * (w_epsilon/w_norm) * r
+        self.w = self.w_mu + torch.exp(self.w_rho) * w_epsilon
+
         #sample bias
         b_epsilon = Normal(0,1).sample(self.b_mu.shape).to(self.device)
-        self.b = self.b_mu + torch.exp(self.b_rho) * b_epsilon
+        #b_norm = torch.norm(b_epsilon, p =2, dim =1 ).unsqueeze(1).unsqueeze(1).unsqueeze(
+        #   1).unsqueeze(1)
+        #self.b = self.b_mu + torch.exp(self.b_rho) * (b_epsilon/b_norm) * r
+        self.b = self.b_mu + torch.exp(self.b_rho) * b_epsilon 
         
         #record prior
         w_log_prior = self.prior.log_prob(self.w)
