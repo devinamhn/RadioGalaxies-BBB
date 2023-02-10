@@ -28,6 +28,8 @@ import mirabest
 from uncertainty import entropy_MI, overlapping, GMM_logits
 from utils import *
 
+from pathlib import Path
+from datamodules import MiraBestDataModule
 #%%
 #vars = parse_args()
 config_dict, config = parse_config('config1.txt')
@@ -54,107 +56,20 @@ kernel_size    = config_dict['training']['kernel_size']
 base           = config_dict['model']['base']
 early_stopping = config_dict['model']['early_stopping']
 
-#data
-dataset = config_dict['data']['dataset']
-path = config_dict['data']['datadir']
-datamean = config_dict['data']['datamean']
-datastd = config_dict['data']['datastd']
 
 #output
 filename = config_dict['output']['filename_uncert']
 test_data_uncert = config_dict['output']['test_data']
 pruning_ = config_dict['output']['pruning']
-#%%
-input_size = imsize*imsize
-hidden_size = hidden_size
-output_size = nclass
-batch_size= batch_size
-#learning_rate = torch.tensor(1e-4) # Initial learning rate {1e-3, 1e-4, 1e-5} -- use larger LR with reduction = 'sum' 
-#momentum = torch.tensor(9e-1)
-burnin = burnin
-T = T
-reduction = reduction #{"sum", "mean"}
-#for now the dropout rates are specified in models.py
-#dropout_rate1= 0.0
-#dropout_rate2= 0.5
-#dropout_rate3= 0.5
-#%%
-path = './dataMiraBest' 
-transform = transforms.Compose([transforms.ToTensor(),transforms.Normalize((0.0031 ,), (0.0350,))])
+#%%  #not reqd for final model LeNet5+ only for ClassifierBBB (ie BBB without conv layers)
+#input_size = imsize*imsize
+#hidden_size = hidden_size
+#output_size = nclass
 
-#%%
-
-if(dataset =='MBFRConf'):
-    #confident
-    train_data_confident = mirabest.MBFRConfident(path, train=True,
-                                                  transform=transform, target_transform=None,
-                                                  download=False)
-    train_data_conf = train_data_confident
-    
-    test_data_confident = mirabest.MBFRConfident(path, train=False,
-                                                 transform=transform, target_transform=None,
-                                                 download=False)
-    test_data_conf = test_data_confident
-    #convert from PIL to torch.tensor
-    #trainloader = torch.utils.data.DataLoader(dataset=train_data_conf, batch_size=batch_size,shuffle=True)
-
-    
-elif(dataset == 'MBFRConf+Uncert'):
-    #confident
-    train_data_confident = mirabest.MBFRConfident(path, train=True,
-                     transform=transform, target_transform=None,
-                     download=False)
-    
-    #uncertain
-    train_data_uncertain = mirabest.MBFRUncertain(path, train=True,
-                     transform=transform, target_transform=None,
-                     download=False)
-    
-    #concatenate datasets
-    train_data_conf= torch.utils.data.ConcatDataset([train_data_confident, train_data_uncertain])
-    
-        
-    #confident
-    test_data_confident = mirabest.MBFRConfident(path, train=False,
-                     transform=transform, target_transform=None,
-                     download=False)
-    
-    #uncertain
-    test_data_uncertain = mirabest.MBFRUncertain(path, train=False,
-                     transform=transform, target_transform=None,
-                     download=False)
-    #concatenate datasets
-    test_data_conf = torch.utils.data.ConcatDataset([test_data_confident, test_data_uncertain])
-    
-    
-    #convert from PIL to torch.tensor
-    #trainloader = torch.utils.data.DataLoader(dataset=train_data_conf, batch_size=batch_size,shuffle=True)
-    test_loader = torch.utils.data.DataLoader(dataset=test_data_conf, batch_size=batch_size,shuffle=True)
-
-    
-
-#train valid test
-dataset_size = len(train_data_conf)
-indices = list(range(dataset_size))
-split = int(dataset_size*0.2) #int(np.floor(validation_split * dataset_size))
-shuffle_dataset = True
-
-if shuffle_dataset :
-    #np.random.seed(random_seed)
-    np.random.shuffle(indices)
-train_indices, val_indices = indices[split:], indices[:split]
-    
-# Creating data samplers and loaders:
-train_sampler = SubsetRandomSampler(train_indices)
-valid_sampler = SubsetRandomSampler(val_indices)
-    
-train_loader = torch.utils.data.DataLoader(train_data_conf, batch_size=batch_size, sampler=train_sampler)
-validation_loader = torch.utils.data.DataLoader(train_data_conf, batch_size=batch_size, sampler=valid_sampler)
-#convert from PIL to torch.tensor
-#trainloader = torch.utils.data.DataLoader(dataset=train_data_conf, batch_size=batch_size,shuffle=True)
-
-test_loader = torch.utils.data.DataLoader(dataset=test_data_conf, batch_size=batch_size,shuffle=True)
-
+#%% load data
+datamodule = MiraBestDataModule(config_dict, config)
+train_loader, validation_loader, train_sampler, valid_sampler = datamodule.train_val_loader()
+test_loader = datamodule.test_loader()
 
 
 num_batches_train = len(train_loader)
@@ -169,7 +84,7 @@ kwargs = {'num_workers': 1, 'pin_memory': True} if use_cuda else {}
 print("Device: ",device)
 #%%
 input_ch = 1
-out_ch = nclass
+out_ch = nclass #y.view(-1)
 kernel_size = kernel_size
 
 model = Classifier_ConvBBB(input_ch, out_ch, kernel_size, prior_var, prior).to(device)
