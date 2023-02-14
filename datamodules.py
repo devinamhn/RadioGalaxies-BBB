@@ -41,7 +41,8 @@ class MiraBestDataModule():
             
             
             transform = transforms.Compose([crop,pad,
-                                            transforms.RandomRotation(360, resample=Image.BILINEAR, expand=False),
+                                            #transforms.RandomRotation(360, resample=Image.BILINEAR, expand=False),
+                                            transforms.RandomRotation(360, interpolation=InterpolationMode.NEAREST, expand=False),
                                             transforms.ToTensor(),
                                             transforms.Normalize((self.datamean ,), (self.datastd,)),
                                             ])
