@@ -8,7 +8,7 @@ from torch.utils.data.sampler import SubsetRandomSampler
 import torch.optim as optim
 from torchsummary import summary
 import numpy as np
-import pylab as pl
+#import pylab as pl
 import matplotlib.pyplot as plt
 import seaborn as sns
 from torch.distributions import Normal
