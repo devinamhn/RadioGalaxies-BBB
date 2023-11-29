@@ -6,3 +6,9 @@ lap_exp1_no random seed
 temp.py
 requirements_all
 pip_list
+dataGalaxyMNISTHighres
+results
+venv
+.venv
+*.png
+*.pt

@@ -10,6 +10,9 @@ import csv
 import mirabest
 import torchvision.transforms as transforms
 import torch.nn.functional as F
+import torchvision
+from galaxy_mnist import GalaxyMNIST, GalaxyMNISTHighrez
+
 
 #%%
 def get_samples(model, n_samples, n_params, log_space):
@@ -400,3 +403,124 @@ def uncert(model, test_data_uncert, device, T, burnin, reduction, csvfile, pruni
             writer.writerow(_results)
         
 #%%
+
+def get_logits(model, test_data_uncert, device, path):
+
+    test_data = test_data_uncert
+    transform = transforms.Compose([transforms.ToTensor(),transforms.Normalize((0.0031 ,), (0.0350,))])
+    test_data1 = test_data_uncert
+    
+    if(test_data_uncert == 'MBFRConfident'):
+        
+    #confident test set
+        test_data = mirabest.MBFRConfident(path, train=False,
+                            transform=transform, target_transform=None,
+                            download=False)
+        
+        test_data1 = mirabest.MBFRConfident(path, train=False,
+                            transform=None, target_transform=None,
+                            download=False)
+        #uncomment for test set
+        indices = np.arange(0, len(test_data), 1)
+    
+    elif(test_data_uncert == 'MBFRUncertain'):
+        # uncertain
+        
+        test_data = mirabest.MBFRUncertain(path, train=False,
+                         transform=transform, target_transform=None,
+                         download=False)
+        
+        test_data1 = mirabest.MBFRUncertain(path, train=False,
+                         transform=None, target_transform=None,
+                         download=False)
+        data_type = 'MBFR_Uncert'
+    elif(test_data_uncert == 'MBHybrid'):
+        #hybrid
+        test_data = mirabest.MBHybrid(path, train=True,
+                         transform=transform, target_transform=None,
+                         download=False)
+        test_data1 = mirabest.MBHybrid(path, train=True,
+                         transform=None, target_transform=None,
+                         download=False)
+        data_type = 'MBHybrid'
+
+    elif(test_data_uncert == 'Galaxy_MNIST'):
+        transform = torchvision.transforms.Compose([ torchvision.transforms.ToTensor(),
+        torchvision.transforms.Resize((150,150), antialias = True), 
+        torchvision.transforms.Grayscale(),
+        ])
+        # 64 pixel images
+        train_dataset = GalaxyMNISTHighrez(
+            root='./dataGalaxyMNISTHighres',
+            download=True,
+            train=True,  # by default, or set False for test set
+            transform = transform
+        )
+
+        test_dataset = GalaxyMNISTHighrez(
+            root='./dataGalaxyMNISTHighres',
+            download=True,
+            train=False,  # by default, or set False for test set
+            transform = transform
+        )
+        gal_mnist_test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=104, shuffle = False)
+
+        for i, (x_test_galmnist, y_test_galmnist) in enumerate(gal_mnist_test_loader):
+            x_test_galmnist, y_test_galmnist = x_test_galmnist.to(device), y_test_galmnist.to(device)
+            y_test_galmnist = torch.zeros(104).to(device)
+            if(i==0):
+                break
+        test_data = x_test_galmnist
+
+
+    else:
+        print("Test data for uncertainty quantification misspecified")
+    indices = np.arange(0, len(test_data), 1)
+    logit = True
+  
+    num_batches_test = 1
+    
+    
+    fr1 = 0
+    fr2 = 0
+    samples_iter = 200
+
+    output_ = torch.zeros(samples_iter, len(test_data), 2)
+    
+    print(indices)
+    logits_all= []
+    for index in indices:
+        
+        x = torch.unsqueeze(torch.tensor(test_data[index][0]),0)
+        if(test_data_uncert == 'Galaxy_MNIST'):
+            y = torch.tensor([0])#test_data[index][1]),0)
+            target = y.detach().numpy().flatten()
+        else:
+            y = torch.unsqueeze(torch.tensor(test_data[index][1]),0)
+            target = y.detach().numpy().flatten()[0]
+        # print(y)
+        # print(target)
+        # output_ = torch.zeros(samples_iter, 2) #[]
+        logits_=[]
+        i=1
+        #for a single datapoint
+        with torch.no_grad():
+            model.eval()
+            # model.train(False)
+            # enable_dropout(model)
+
+            for j in range(samples_iter):
+                x_test, y_test = x.to(device), y.to(device)
+                # print(y_test.shape[0])
+                loss, pred, complexity_cost, likelihood_cost, conv_complexity, linear_complexity, logits = model.sample_elbo(x_test, y_test, 1, i, num_batches_test,samples_batch=1, T=0.01, burnin=None, reduction="sum", logit= True)
+                outputs = logits
+                # outputs = model(x_test)
+                # softmax = F.softmax(outputs, dim = -1)
+                # pred = softmax.argmax(dim=-1)
+
+                output_[j][index] = outputs
+             
+    print(output_)
+
+    return output_
+        

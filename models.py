@@ -209,7 +209,7 @@ class Classifier_ConvBBB(nn.Module):
                 outputs[i], logits = self(input, logit = True)
                
             else:
-                outputs[i] = self(input, logit = False)
+                outputs[i] = self(input.to(self.device), logit = False)
                 
                 #pac
                 if(pac == True):

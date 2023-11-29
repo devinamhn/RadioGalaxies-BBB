@@ -94,7 +94,8 @@ model = Classifier_ConvBBB(input_ch, out_ch, kernel_size, prior_var, prior).to(d
 
 #model = Classifier_BBB(input_size, hidden_size, output_size, prior_var, prior, imsize).to(device)
 
-print(summary(model, input_size=(1, 150, 150)))
+#print(summary(model, input_size=(1, 150, 150))) #- error on galahad cpu/gpu mismatch 
+
 #learning_rate = torch.tensor(1e-4) # Initial learning rate {1e-3, 1e-4, 1e-5} -- use larger LR with reduction = 'sum' 
 epochs = 10
 # multiple runs saved in csv files
