@@ -19,8 +19,6 @@ import os
 import csv
 import pandas as pd
 from tabulate import tabulate
-
-
 from priors import GaussianPrior, GMMPrior
 from models import Classifier_BBB, Classifier_ConvBBB
 import mirabest
@@ -29,6 +27,9 @@ from utils import *
 
 from pathlib import Path
 from datamodules import MiraBestDataModule
+
+import gpytorch
+from ngd import NGD
 
 #vars = parse_args()
 config_dict, config = parse_config('config1.txt')
@@ -97,11 +98,13 @@ model = Classifier_ConvBBB(input_ch, out_ch, kernel_size, prior_var, prior).to(d
 #print(summary(model, input_size=(1, 150, 150))) #- error on galahad cpu/gpu mismatch 
 
 #learning_rate = torch.tensor(1e-4) # Initial learning rate {1e-3, 1e-4, 1e-5} -- use larger LR with reduction = 'sum' 
-epochs = 10
 # multiple runs saved in csv files
 for i in range (1):#(1, 5):
     model = Classifier_ConvBBB(input_ch, out_ch, kernel_size, prior_var, prior).to(device)
     #model = Classifier_BBB(input_size, hidden_size, output_size, prior_var, prior, imsize).to(device)
+
+    # optimizer = gpytorch.optim.NGD(model.parameters(), num_data = 584, lr = 0.1)
+    # optimizer = NGD(model.parameters(), lr = 0.001)#, weight_decay = 1e-7)
 
     optimizer = optim.Adam(model.parameters(), lr = learning_rate)
     scheduler = ReduceLROnPlateau(optimizer=optimizer, mode= 'min', factor=0.95, patience=3, verbose=False)
@@ -171,7 +174,7 @@ for i in range (1):#(1, 5):
         epoch_testloss_complexity_conv.append(np.sum(test_complexity_conv)/len(valid_sampler))
         epoch_testloss_complexity_linear.append(np.sum(test_complexity_linear)/len(valid_sampler))
         
-        scheduler.step(epoch_testloss_loglike[-1])
+        # scheduler.step(epoch_testloss_loglike[-1])
         
         accuracy = epoch_testaccs[-1]
         
@@ -268,32 +271,7 @@ plt.xlabel('Epochs')
 plt.ylabel('error(%)')
 plt.savefig('./exps/temp/error.png')
 
-# #%%
-# density, db_SNR = density_snr_conv(model)
-# #%%
-# plt.figure(dpi=200)
-# plt.xlabel('Weight')
-# plt.grid(True)
-# sns.set_palette("colorblind")
-# sns.kdeplot(density, x="weight", fill=True)
-# #%%
-# #plot density and CDF of SNR(dB)
-# plt.figure(dpi=300)
-# plt.xlabel('Signal-to-Noise (dB)')
-# plt.ylabel('Density')
-# #plt.xlim((-35,15))
-# plt.grid(True)
-# sns.set_style("whitegrid", {'axes.grid' : True})
-# sns.kdeplot(db_SNR, x="SNR", fill=True,alpha=0.5)
-# #%%
-# plt.figure(dpi=200)
-# plt.ylabel('CDF')
-# plt.xlabel('Signal-to-Noise')
-# sns.kdeplot(db_SNR, x="SNR", fill=False,alpha=0.5, cumulative=True, color= 'black')
-# #%%
-
 #calculate test error 
-#model = Classifier_BBB(input_size, hidden_size, output_size, prior_var, prior, imsize).to(device)
 model = Classifier_ConvBBB(input_ch, out_ch, kernel_size, prior_var, prior).to(device)
 
 model.load_state_dict(torch.load("model.pt"))

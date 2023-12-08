@@ -4,12 +4,12 @@ early_stopping: True            # early stopping [True/False]
 
 [priors]
 prior: 'Laplacian'		# Gaussian, GaussianMixture, Cauchy, Laplacian, LaplaceMixture
-prior_init: '0, 1'		#initialisation of prior '5e-1, 1e-1, 1e-3', '0, 1e-2'	'0.75, 1, 0.0009' '0.75, 1, 1e-3'
+prior_init: '0, 1'	#initialisation of prior '5e-1, 1e-1, 1e-3', '0, 1e-2'	'0.75, 1, 0.0009' '0.75, 1, 1e-3''0, 1'
 
 
 [data]
 dataset: 'MBFRConf'		# dataset class [MNIST, MBFRConfident, MBFRConf+Uncert]
-datadir: '/dataMiraBest'       # name of directory to download data into - no . in './' if using pathlib
+datadir: './dataMiraBest'       # name of directory to download data into - no . in './' if using pathlib
 datamean: 0.0031               # mean for normalisation MNIST[0.1307, 0.3081], MiraBest[0.0031, 0.0350]
 datastd: 0.0350             # stdev for normalisation  
 augment: False		#True/False. No augmentation at test time.
@@ -17,7 +17,7 @@ augment: False		#True/False. No augmentation at test time.
 [training]
 batch_size: 50		# [128, 50]
 frac_val:0.2                 	# for train:val split
-epochs: 500                     # total number of epochs
+epochs: 1000                     # total number of epochs
 imsize: 150                     	# pixels on side of image [28, 150]
 hidden_size: 800		# number of hidden units per layer - mlp
 num_classes: 2                 # number of target classes [10, 2]

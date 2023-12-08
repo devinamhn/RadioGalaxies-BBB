@@ -9,6 +9,5 @@ pip_list
 dataGalaxyMNISTHighres
 results
 venv
-.venv
 *.png
 *.pt
