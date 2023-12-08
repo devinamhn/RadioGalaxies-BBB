@@ -1,5 +1,7 @@
 import torch
 import numpy as np
+use_cuda = torch.cuda.is_available()
+device = torch.device("cuda" if use_cuda else "cpu")
 
 class GaussianPrior():
 
@@ -8,8 +10,8 @@ class GaussianPrior():
         self.var = var
 
     def log_prob(self,x):
-
-        lnP = torch.distributions.Normal(0,self.var).log_prob(x)
+        # print(x.is_cuda)
+        lnP = torch.distributions.Normal(torch.tensor(0).to(device),torch.tensor(self.var).to(device)).log_prob(x)
  
         return lnP
 
