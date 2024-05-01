@@ -12,18 +12,122 @@ import torchvision.transforms as transforms
 import torch.nn.functional as F
 import torchvision
 from galaxy_mnist import GalaxyMNIST, GalaxyMNISTHighrez
+from pathlib import Path
+
+from cata2data import CataData
+from mightee import MighteeZoo
+
+class Path_Handler:
+    """Handle and generate paths in project directory"""
+
+    def __init__(
+        self, **kwargs
+    ):  # use defaults except where specified in kwargs e.g. Path_Handler(data=some_alternative_dir)
+        path_dict = {}
+        path_dict["root"] = kwargs.get("root", Path(__file__).resolve().parent.parent.parent)
+        path_dict["project"] = kwargs.get(
+            "project", Path(__file__).resolve().parent.parent
+        )  # i.e. this repo
+
+        path_dict["data"] = kwargs.get("data", path_dict["root"]  / "data")
+
+        for key, path_str in path_dict.copy().items():
+            path_dict[key] = Path(path_str)
+
+        self.path_dict = path_dict
+
+    def fill_dict(self):
+        """Create dictionary of required paths"""
+
+        self.path_dict["rgz"] = self.path_dict["data"] / "rgz"
+        self.path_dict["mb"] = self.path_dict["data"] / "mb"
+        self.path_dict["mightee"] = self.path_dict["data"] / "MIGHTEE"
+
+    def create_paths(self):
+        """Create missing directories"""
+        for path in self.path_dict.values():
+            create_path(path)
+
+    def _dict(self):
+        """Generate path dictionary, create any missing directories and return dictionary"""
+        self.fill_dict()
+        self.create_paths()
+        return self.path_dict
 
 
-#%%
+def create_path(path):
+    if not Path.exists(path):
+        Path.mkdir(path)
+
+
+def get_vi_samples(path_vi, num_samples, num_params_vi, indices):
+
+    vi_samples = np.load(path_vi)
+    vi_samples = vi_samples.reshape((num_samples, num_params_vi)) #[:, 0:5] #[:, 163:]
+    vi_samples = np.take(vi_samples, indices, axis=1)# #torch.index_select(vi_samples, dim = 1, index = index_highz)
+
+    return vi_samples
+def posterior_samples(model, n_samples, n_params, log_space):
+    "gets posterior samples for the last layer weights"
+    # samples = model.posterior_samples(n_samples, n_params, log_space)
+    print(model.out.w_post.sample().flatten().shape)  
+    samples = np.zeros((n_params,n_samples))
+    if(log_space == True):
+        
+        for j in range(n_params):
+            for i in range(n_samples):
+                samples[j][i] = model.out.log_prior #F.log_softmax(self.out, dim = -1)[0][j]        
+    else:
+        for j in range(n_params):
+            for i in range(n_samples):
+                samples[j][i] = model.out.w_post.sample().flatten()[j] 
+                # samples[j][i] = self.out.w_post.sample()[0][j] 
+    return samples
+
+def posterior_samples_random(model, n_samples, n_params, log_space):
+    "gets posterior samples for the last layer weights"
+    samples = model.posterior_samples(n_samples, n_params, log_space)
+    # print(model.out.w_post.sample().flatten().shape)  
+    # samples = np.zeros((n_params,n_samples))
+
+    samples_conv1 = np.zeros((n_params,n_samples))
+    samples_conv2 = np.zeros((n_params,n_samples))
+    samples_conv3 = np.zeros((n_params,n_samples))
+    samples_conv4 = np.zeros((n_params,n_samples))
+    samples_fc1 = np.zeros((n_params,n_samples))
+    samples_fc2 = np.zeros((n_params,n_samples))
+    samples_out = np.zeros((n_params,n_samples))
+    
+    # np.random.randint(1, 1000, 50 )
+    if(log_space == True):
+        
+        for j in range(n_params):
+            for i in range(n_samples):
+                samples[j][i] = model.out.log_prior #F.log_softmax(self.out, dim = -1)[0][j]        
+    else:
+        for j in range(n_params):
+            for i in range(n_samples):
+   
+                samples_conv1[j][i] = model.conv1.w_post.sample().flatten()[j] 
+                samples_conv2[j][i] = model.conv2.w_post.sample().flatten()[j] 
+                samples_conv3[j][i] = model.conv3.w_post.sample().flatten()[j] 
+                samples_conv4[j][i] = model.conv4.w_post.sample().flatten()[j] 
+                samples_fc1[j][i] = model.h1.w_post.sample().flatten()[j] 
+                samples_fc2[j][i] = model.h2.w_post.sample().flatten()[j] 
+                samples_out[j][i] = model.out.w_post.sample().flatten()[j] 
+
+    return samples_conv1, samples_conv2, samples_conv3, samples_conv4, samples_fc1, samples_fc2, samples_out
+
+# #%%
 def get_samples(model, n_samples, n_params, log_space):
 
     samples = model.posterior_samples(n_samples, n_params, log_space)
     samples = np.transpose(samples)
     #print(samples.shape)
     
-    import corner
-    corner.corner(samples, quantiles=[0.16, 0.5, 0.84],show_titles=True)
-    
+    # import corner
+    # corner.corner(samples, quantiles=[0.16, 0.5, 0.84],show_titles=True)
+    return samples
 #%%
 def density_snr(model):
     device = "cpu"
@@ -127,7 +231,7 @@ def train(model, train_loader, optimizer, device, T, burnin, reduction, pac):
       
     return train_loss, train_loss_c, train_loss_l, train_accs,  trainloss_c_conv,  trainloss_c_linear
 
-def validate(model, validation_loader, device, T, burnin, reduction, epoch, prior, prior_var, pac):
+def validate(model, validation_loader, device, T, burnin, reduction, epoch, prior, prior_var, pac, file_path):
     #conv
     num_batches_valid = len(validation_loader)
     input_ch = 1
@@ -149,7 +253,7 @@ def validate(model, validation_loader, device, T, burnin, reduction, epoch, prio
         #model = Classifier_BBB(input_size, hidden_size, output_size, prior_var, prior, imsize).to(device)
         #conv
         model = Classifier_ConvBBB(input_ch, out_ch, kernel_size, prior_var, prior).to(device)
-        model.load_state_dict(torch.load("model.pt"))
+        model.load_state_dict(torch.load(file_path + "model.pt"))
         
     with torch.no_grad():
         
@@ -472,6 +576,24 @@ def get_logits(model, test_data_uncert, device, path):
                 break
         test_data = x_test_galmnist
 
+    elif(test_data_uncert == 'mightee'):
+        transform = torchvision.transforms.Compose(
+            [
+                torchvision.transforms.ToTensor(),
+                torchvision.transforms.Resize(150),  # Rescale to adjust for resolution difference between MIGHTEE & RGZ - was 70
+                torchvision.transforms.Normalize((1.59965605788234e-05,), (0.0038063037602458706,)),
+            ]
+        )
+        paths = Path_Handler()._dict()
+        set = 'certain'
+
+        data = MighteeZoo(path=paths["mightee"], transform=transform, set="certain")
+        test_loader = DataLoader(data, batch_size=len(data))
+        # for i, (x_test, y_test) in enumerate(test_loader):
+        #     x_test, y_test = x_test.to(device), y_test.to(device)
+        
+        test_data = data
+
 
     else:
         print("Test data for uncertainty quantification misspecified")
@@ -486,17 +608,18 @@ def get_logits(model, test_data_uncert, device, path):
     samples_iter = 200
 
     output_ = torch.zeros(samples_iter, len(test_data), 2)
-    
-    print(indices)
+    softmax_ = torch.zeros(samples_iter, len(test_data), 2)
+
+    print('N_datapts', len(indices))
     logits_all= []
     for index in indices:
         
-        x = torch.unsqueeze(torch.tensor(test_data[index][0]),0)
+        x = torch.unsqueeze(test_data[index][0].clone().detach(), 0) #torch.unsqueeze(torch.tensor(test_data[index][0]),0) #
         if(test_data_uncert == 'Galaxy_MNIST'):
             y = torch.tensor([0])#test_data[index][1]),0)
             target = y.detach().numpy().flatten()
         else:
-            y = torch.unsqueeze(torch.tensor(test_data[index][1]),0)
+            y = torch.unsqueeze(torch.tensor(test_data[index][1]),0) #test_data[index][1].clone().detach()
             target = y.detach().numpy().flatten()[0]
         # print(y)
         # print(target)
@@ -512,15 +635,40 @@ def get_logits(model, test_data_uncert, device, path):
             for j in range(samples_iter):
                 x_test, y_test = x.to(device), y.to(device)
                 # print(y_test.shape[0])
-                loss, pred, complexity_cost, likelihood_cost, conv_complexity, linear_complexity, logits = model.sample_elbo(x_test, y_test, 1, i, num_batches_test,samples_batch=1, T=0.01, burnin=None, reduction="sum", logit= True)
+                loss, pred, complexity_cost, likelihood_cost, conv_complexity, linear_complexity, logits = model.sample_elbo(
+                                                                                x_test, y_test, 1, i, 
+                                                                                num_batches_test,samples_batch=1, T=0.01, 
+                                                                                burnin=None, reduction="sum", logit= True)
                 outputs = logits
                 # outputs = model(x_test)
-                # softmax = F.softmax(outputs, dim = -1)
+                softmax = F.softmax(outputs, dim = -1)
                 # pred = softmax.argmax(dim=-1)
 
                 output_[j][index] = outputs
-             
-    print(output_)
+                softmax_[j][index] = softmax
+                #plt.title("softmax probabilities")
 
-    return output_
+        # plt.figure(figsize= (2.6, 4.8), dpi=300)
+        # plt.rcParams["axes.grid"] = False
+        # plt.subplot((211))
+        # plt.scatter(x, softmax, marker='_',linewidth=1,color='b',alpha=0.5)
+        # plt.title("softmax outputs")
+        # plt.xticks(np.arange(0, 2, 1.0))
+        
+        # plt.subplot((212))
+        # plt.imshow(test_data1[index][0])
+        # plt.axis("off")
+        # #label = 'target = ' + str(test_data1[index][1])
+        # plt.title('class'+str(target) +': '+label)
+        # plt.savefig('./scatterplot.png')
+
+        # if(index == 0):
+        #     break
+
+    # print(output_)
+    # print(softmax_)
+
+
+
+    return output_, softmax_
         
