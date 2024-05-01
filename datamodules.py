@@ -14,7 +14,7 @@ import mirabest
 
 class MiraBestDataModule():
     
-    def __init__(self, config_dict, config):
+    def __init__(self, config_dict, config, random_seed = 15):
         
         self.batch_size     = config_dict['training']['batch_size']
         self.validation_split = config_dict['training']['frac_val']
@@ -24,9 +24,9 @@ class MiraBestDataModule():
         self.path = Path(config_dict['data']['datadir'])
         self.datamean = config_dict['data']['datamean']
         self.datastd = config_dict['data']['datastd']
-        self.augment = config_dict['data']['augment'] #more useful to define while calling train/val loader?
+        self.augment = 'True' #config_dict['data']['augment'] #more useful to define while calling train/val loader?
         self.imsize = config_dict['training']['imsize']
-    
+        self.random_seed = random_seed
         
     def transforms(self, aug):
         
@@ -34,6 +34,7 @@ class MiraBestDataModule():
             transform = transforms.Compose([transforms.ToTensor(),transforms.Normalize((self.datamean ,), (self.datastd,))])
 
         else:
+            print('AUGMENTING')
             #crop, pad(reflect), rotate, to tensor, normalise
             #change transform to transform_aug for the training and validation set only:train_data_confident
             crop     = transforms.CenterCrop(self.imsize)
@@ -78,7 +79,7 @@ class MiraBestDataModule():
         indices = list(range(dataset_size))
         split = int(dataset_size*0.2) #int(np.floor(validation_split * dataset_size))
         shuffle_dataset = True
-        random_seed = 15
+        random_seed = self.random_seed
         
         if shuffle_dataset :
             np.random.seed(random_seed)
