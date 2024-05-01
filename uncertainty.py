@@ -5,6 +5,60 @@ import seaborn as sns
 from matplotlib.patches import Ellipse
 from sklearn.mixture import GaussianMixture, BayesianGaussianMixture
 
+
+def calibration(path, errors, uncertainties, n_bins, x_label):
+
+    bin_boundaries = np.linspace(0, 1, n_bins + 1)
+    bin_lowers = bin_boundaries[:-1]
+    bin_uppers = bin_boundaries[1:]
+
+ 
+    errors_in_bin_list = []
+    avg_entropy_in_bin_list = []
+    len_inbin_list = []
+
+    uce = np.zeros(1)
+    for bin_lower, bin_upper in zip(bin_lowers, bin_uppers):
+        # Calculate |uncert - err| in each bin
+        in_bin = np.greater(uncertainties,bin_lower.item()) * np.less_equal(uncertainties,bin_upper.item())
+        #print(in_bin)
+        
+        prop_in_bin = in_bin.mean()  # |Bm| / n
+        if prop_in_bin.item() > 0.0:
+            errors_in_bin = errors[in_bin].mean() * 2  # err()
+            avg_entropy_in_bin = uncertainties[in_bin].mean()  #uncert()
+            uce += np.abs(avg_entropy_in_bin - errors_in_bin) * prop_in_bin
+
+            errors_in_bin_list.append(errors_in_bin)
+            avg_entropy_in_bin_list.append(avg_entropy_in_bin)
+            
+            #print(len(errors[in_bin]))
+            #print(len(uncertainties[in_bin]))
+            len_inbin_list.append(len(errors[in_bin]))
+
+    
+    err_in_bin = np.array(errors_in_bin_list)
+    avg_entropy_in_bin = np.array(avg_entropy_in_bin_list)
+    len_inbin = np.array(len_inbin_list)
+    # print(len_inbin)
+    #print( uce*100, err_in_bin, avg_entropy_in_bin)
+    
+    # x = np.linspace(0.0, 1.0, 10 )
+    
+    # plt.figure(dpi= 200)
+    # plt.grid(True)
+    # plt.scatter(avg_entropy_in_bin, err_in_bin, label='UCE')
+    # plt.plot(avg_entropy_in_bin, err_in_bin)
+    # plt.plot(x, x, linestyle='--',color="black")
+    # plt.xlabel(x_label)
+    # plt.ylabel("average error")
+    # plt.savefig(path + 'uce_' + x_label +'.png')
+
+    #plt.legend("UCE =",)
+    #plt.yticks(np.array([0,0.2,0.4,0.6,0.8,1.0]))
+    #plt.title("Uncertainty Calibration")
+
+    return uce*100
 def entropy_MI(softmax, samples_iter):
 
     class_0 = softmax[:,0]
