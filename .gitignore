@@ -11,3 +11,5 @@ results
 venv
 *.png
 *.pt
+logs
+wandb
