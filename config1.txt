@@ -1,10 +1,11 @@
 [model]
 base: 'Classifier_ConvBBB'            	# network: [ Classifier_BBB,  Classifier_ConvBBB]
 early_stopping: True            # early stopping [True/False]
+conditioner: "nonlinear"
 
 [priors]
-prior: 'Laplacian'		# Gaussian, GaussianMixture, Cauchy, Laplacian, LaplaceMixture
-prior_init: '0, 1'	#initialisation of prior '5e-1, 1e-1, 1e-3', '0, 1e-2'	'0.75, 1, 0.0009' '0.75, 1, 1e-3''0, 1'
+prior: 'Gaussian'		# Gaussian, GaussianMixture, Cauchy, Laplacian, LaplaceMixture
+prior_init: '0, 1e-1'	#initialisation of prior '5e-1, 1e-1, 1e-3', '0, 1e-2'	'0.75, 1, 0.0009' '0.75, 1, 1e-3''0, 1'
 
 
 [data]
@@ -15,9 +16,11 @@ datastd: 0.0350             # stdev for normalisation
 augment: False		#True/False. No augmentation at test time.
 
 [training]
+seed: 122
+seed_data: 14
 batch_size: 50		# [128, 50]
 frac_val:0.2                 	# for train:val split
-epochs: 1000                     # total number of epochs
+epochs: 1500                    # total number of epochs
 imsize: 150                     	# pixels on side of image [28, 150]
 hidden_size: 800		# number of hidden units per layer - mlp
 num_classes: 2                 # number of target classes [10, 2]
@@ -35,3 +38,4 @@ pac: False
 filename_uncert: './mirabest_uncert.csv'
 test_data: 'MBFRConfident' 			#{'MBFRConfident', 'MBFRUncertain', 'MBHybrid'} for uncert calc
 pruning: 'Fisher' 			#{'Unpruned', 'SNR', 'Fisher'}
+path_out: '/share/nas2/dmohan/bbb/RadioGalaxies-BBB/exps_final/nonlinear_shuffle/gaussian/augment/vi_' 
