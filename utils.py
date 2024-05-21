@@ -128,71 +128,7 @@ def get_samples(model, n_samples, n_params, log_space):
     # import corner
     # corner.corner(samples, quantiles=[0.16, 0.5, 0.84],show_titles=True)
     return samples
-#%%
-def density_snr(model):
-    device = "cpu"
-    model = model.to(device="cpu")
-    
-    weights =  np.append(model.h1.w.to(device=torch.device(device)).detach().numpy().flatten(), model.h2.w.to(device=torch.device(device)).detach().numpy().flatten())
-    weights = np.append(weights, model.out.w.to(device=torch.device(device)).detach().numpy().flatten())
-    
-    #get trained posterior on weights for the 2 hidden layers
-    mu_post_w = np.append(model.h1.w_mu.detach().numpy().flatten(), model.h2.w_mu.detach().numpy().flatten())
-    mu_post_w = np.append(mu_post_w,  model.out.w_mu.detach().numpy().flatten())
 
-    rho_post_w = np.append(model.h1.w_rho.detach().numpy().flatten(), model.h2.w_rho.detach().numpy().flatten())
-    rho_post_w = np.append(rho_post_w, model.out.w_rho.detach().numpy().flatten())
-    #convert rho to sigma
-    #sigma_post_w = np.log(1+np.exp(rho_post_w))
-    sigma_post_w = np.exp(rho_post_w)
-    #calculate SNR = |mu_weight|/sigma_weight
-    SNR = abs(mu_post_w)/sigma_post_w
-    db_SNR = 10*np.log10(SNR)
-    #order the weights by SNR
-    sorted_SNR = np.sort(db_SNR)[::-1]
-    #remove x% of weights with lowest SNR
-    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-    model = model.to(device)
-    return weights, db_SNR
-#%%
-def density_snr_conv(model):
-    device = "cpu"
-    model = model.to(device="cpu")
-    '''
-    weights =  np.append(model.conv1.w.to(device=torch.device(device)).detach().numpy().flatten(), model.conv2.w.to(device=torch.device(device)).detach().numpy().flatten())
-    weights = np.append(weights, model.conv3.w.to(device=torch.device(device)).detach().numpy().flatten())
-    weights = np.append(weights, model.conv4.w.to(device=torch.device(device)).detach().numpy().flatten())
-    weights = np.append(weights,model.h1.w.to(device=torch.device(device)).detach().numpy().flatten() )
-    weights =  np.append(weights, model.h2.w.to(device=torch.device(device)).detach().numpy().flatten())
-    weights = np.append(weights, model.out.w.to(device=torch.device(device)).detach().numpy().flatten())
-
-    '''
-    #get trained posterior on weights for the 2 hidden layers
-    mu_post_w = np.append(model.h1.w_mu.detach().numpy().flatten(), model.h2.w_mu.detach().numpy().flatten())
-    mu_post_w = np.append(mu_post_w,  model.out.w_mu.detach().numpy().flatten())
-    mu_post_w = np.append(mu_post_w, model.conv1.w_mu.detach().numpy().flatten())
-    mu_post_w = np.append(mu_post_w, model.conv2.w_mu.detach().numpy().flatten())
-    mu_post_w = np.append(mu_post_w, model.conv3.w_mu.detach().numpy().flatten())
-    mu_post_w = np.append(mu_post_w, model.conv4.w_mu.detach().numpy().flatten())
-    
-    rho_post_w = np.append(model.h1.w_rho.detach().numpy().flatten(), model.h2.w_rho.detach().numpy().flatten())
-    rho_post_w = np.append(rho_post_w, model.out.w_rho.detach().numpy().flatten())
-    rho_post_w = np.append(rho_post_w, model.conv1.w_rho.detach().numpy().flatten())
-    rho_post_w = np.append(rho_post_w, model.conv2.w_rho.detach().numpy().flatten())
-    rho_post_w = np.append(rho_post_w, model.conv3.w_rho.detach().numpy().flatten())
-    rho_post_w = np.append(rho_post_w, model.conv4.w_rho.detach().numpy().flatten())
-    #convert rho to sigma
-    #sigma_post_w = np.log(1+np.exp(rho_post_w))
-    sigma_post_w = np.exp(rho_post_w)
-    #calculate SNR = |mu_weight|/sigma_weight
-    SNR = abs(mu_post_w)/sigma_post_w
-    db_SNR = 10*np.log10(SNR)
-    #order the weights by SNR
-    sorted_SNR = np.sort(db_SNR)[::-1]
-    #remove x% of weights with lowest SNR
-    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-    model = model.to(device)
-    return mu_post_w, db_SNR
 
 def train(model, train_loader, optimizer, device, T, burnin, reduction, pac):
 
