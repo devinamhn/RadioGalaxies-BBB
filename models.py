@@ -6,6 +6,7 @@ from torch.distributions import Normal
 import numpy as np
 
 from layers import Linear_BBB, Conv_BBB
+# from layers_linear_conditioner import Linear_BBB, Conv_BBB
 
 class Classifier_BBB(nn.Module):
     def __init__(self, in_dim, hidden_dim, out_dim, prior_var, prior_type, imsize):
@@ -161,10 +162,10 @@ class Classifier_ConvBBB(nn.Module):
         return F.nll_loss(outputs, target, reduction=reduction)
     
     def posterior_samples(self, n_samples, n_params, log_space):
-        print(self.out.w_post.sample().shape)
+        # print(self.out.w_post.sample().shape)
         
         samples = np.zeros((n_params,n_samples))
-        print(self.out.log_prior)
+        # print(self.out.log_prior)
         #print(out)
         
         if(log_space == True):
