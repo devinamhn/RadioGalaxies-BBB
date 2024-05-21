@@ -1,3 +1,5 @@
+""" Fully connected and convolutional layers for variational inference based on Bayes by Backprop """
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -10,7 +12,7 @@ from priors import GaussianPrior, GMMPrior, LaplacePrior, CauchyPrior, LaplaceMi
 class Linear_BBB(nn.Module):
 
     """
-        Layer of our BNN.
+        Fully Connected layer of our BNN.
     """
 
     def __init__(self, input_features, output_features, prior_var, prior_type):
@@ -29,16 +31,6 @@ class Linear_BBB(nn.Module):
         #initialize bias params
         self.b_mu =  nn.Parameter(torch.zeros(output_features).uniform_(-0.1, 0.1).to(self.device))
         self.b_rho = nn.Parameter(torch.zeros(output_features).uniform_(-5, -4).to(self.device))
-        '''
-        #normal distrib
-        # initialize weight params
-        self.w_mu = nn.Parameter(torch.zeros(output_features, input_features).normal_(0, 0.1).to(self.device))
-        self.w_rho = nn.Parameter(torch.zeros(output_features, input_features).normal_(-5, 0.1).to(self.device)) 
-        
-        #initialize bias params
-        self.b_mu =  nn.Parameter(torch.zeros(output_features).normal_(0, 0.1).to(self.device))
-        self.b_rho = nn.Parameter(torch.zeros(output_features).normal_(-5, 0.1).to(self.device))
-        '''
        
         # initialize prior distribution
         if(prior_type == 'Gaussian'):
@@ -61,39 +53,7 @@ class Linear_BBB(nn.Module):
           Optimization process
           
         """
-        '''
-        
-        size = self.w_mu.shape
-        print(size, size[0])
-        
-        size_b = self.b_mu.shape
-        print(size_b, size_b[0])
-        
-        r = torch.randn(size[0]).to(self.device)
-        
-        
-        #sample weights
-        w_epsilon = Normal(0,1).sample(self.w_mu.shape).to(self.device)
-        #sample bias
-        b_epsilon = Normal(0,1).sample(self.b_mu.shape).to(self.device)
-        
-        w_norm = torch.linalg.norm(w_epsilon).unsqueeze(1)
-        #print(w_epsilon.view(size[0], -1).shape)
-        #if(len(size)==2):
-        #    #w_norm = torch.norm(w_epsilon.view(size[0], -1), p =2, dim =1 ).unsqueeze(1)
-        #    
-        #    r = r.unsqueeze(1)
-            
-            
-        self.w = self.w_mu + torch.exp(self.w_rho) * (w_epsilon/w_norm) *r
-        #self.w = self.w_mu + torch.exp(self.w_rho) * w_epsilon
-        
 
-        b_norm = torch.norm(b_epsilon, p =2, dim =1 ).unsqueeze(1)
-        self.b = self.b_mu + torch.exp(self.b_rho) * (b_epsilon/b_norm) *r
-        #self.b = self.b_mu + torch.exp(self.b_rho) * b_epsilon 
-        
-        '''
         #sample weights
         w_epsilon = Normal(0,1).sample(self.w_mu.shape).to(self.device)
         self.w = self.w_mu + torch.exp(self.w_rho) * w_epsilon
@@ -144,21 +104,10 @@ class Conv_BBB(nn.Module):
         
         self.b_mu =  nn.Parameter(torch.zeros(out_channels).uniform_(-0.1, 0.1).to(self.device))
         self.b_rho = nn.Parameter(torch.zeros(out_channels).uniform_(-5, -4).to(self.device))
-        
-        '''
-        #normal distrib
-        # initialize weight params
-        self.w_mu = nn.Parameter(torch.zeros(out_channels, in_channels, *self.kernel_size).normal_(0, 0.1).to(self.device))
-        self.w_rho = nn.Parameter(torch.zeros(out_channels, in_channels, *self.kernel_size).normal_(-5, 1).to(self.device)) 
-        
-        #initialize bias params
-        self.b_mu =  nn.Parameter(torch.zeros(out_channels).normal_(0, 0.1).to(self.device))
-        self.b_rho = nn.Parameter(torch.zeros(out_channels).normal_(-5, 1).to(self.device))
-        '''
-        
+
         # initialize prior distribution
         if(prior_type == 'Gaussian'):
-            self.prior = GaussianPrior(prior_var) #1e-1
+            self.prior = GaussianPrior(prior_var)
         elif(prior_type == 'GaussianMixture'):
             self.prior = GMMPrior(prior_var)
         elif(prior_type == 'Laplacian'):
@@ -173,30 +122,12 @@ class Conv_BBB(nn.Module):
         
       
     def forward(self, input):
-        r = abs(torch.randn(1)) 
-        
-        
-        '''                
-        size = self.w_mu.shape
-        print(size, size[0])
-        
-        size_b = self.b_mu.shape
-        print(size_b, size_b[0])
-        '''        
-        
         #sample weights
         w_epsilon = Normal(0,1).sample(self.w_mu.shape).to(self.device)
-        #w_norm = torch.norm(w_epsilon, p =2, dim =1 ).unsqueeze(1).unsqueeze(1).unsqueeze(
-        #    1).unsqueeze(1)
-        
-        #self.w = self.w_mu + torch.exp(self.w_rho) * (w_epsilon/w_norm) * r
         self.w = self.w_mu + torch.exp(self.w_rho) * w_epsilon
 
         #sample bias
         b_epsilon = Normal(0,1).sample(self.b_mu.shape).to(self.device)
-        #b_norm = torch.norm(b_epsilon, p =2, dim =1 ).unsqueeze(1).unsqueeze(1).unsqueeze(
-        #   1).unsqueeze(1)
-        #self.b = self.b_mu + torch.exp(self.b_rho) * (b_epsilon/b_norm) * r
         self.b = self.b_mu + torch.exp(self.b_rho) * b_epsilon 
         
         #record prior
