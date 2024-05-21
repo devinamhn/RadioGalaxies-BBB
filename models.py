@@ -6,7 +6,6 @@ from torch.distributions import Normal
 import numpy as np
 
 from layers import Linear_BBB, Conv_BBB
-# from layers_linear_conditioner import Linear_BBB, Conv_BBB
 
 class Classifier_BBB(nn.Module):
     def __init__(self, in_dim, hidden_dim, out_dim, prior_var, prior_type, imsize):
@@ -18,13 +17,7 @@ class Classifier_BBB(nn.Module):
         self.out_dim = out_dim
     
     def forward(self, x, logit= False):
-        '''
-        #MNIST
-        x = x.view(-1, 28*28) #flatten
-        
-        #Mirabest
-        #x = x.view(-1, 150*150)
-        '''
+
         x = x.view(-1, self.imsize*self.imsize)
         x = torch.relu(self.h1(x))
         x = torch.relu(self.h2(x))    
@@ -87,8 +80,6 @@ class Classifier_BBB(nn.Module):
                 frac = T/(num_batches*samples_batch)
             else:
                 pass
-        
-        
 
         complexity_cost = frac*(log_post - log_prior)
         loss = complexity_cost + log_like #or likelihood_cost
@@ -162,22 +153,19 @@ class Classifier_ConvBBB(nn.Module):
         return F.nll_loss(outputs, target, reduction=reduction)
     
     def posterior_samples(self, n_samples, n_params, log_space):
-        # print(self.out.w_post.sample().shape)
         
         samples = np.zeros((n_params,n_samples))
-        # print(self.out.log_prior)
-        #print(out)
         
         if(log_space == True):
         
             for j in range(n_params):
                 for i in range(n_samples):
-                    samples[j][i] = self.out.log_prior #F.log_softmax(self.out, dim = -1)[0][j]
+                    samples[j][i] = self.out.log_prior
           
         else:
             for j in range(n_params):
                 for i in range(n_samples):
-                    samples[j][i] = self.out.w_post.sample()[0][j] #self.out.w_post.sample()[0][j]
+                    samples[j][i] = self.out.w_post.sample()[0][j]
             
         return samples
         
