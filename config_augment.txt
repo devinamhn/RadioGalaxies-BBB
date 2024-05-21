@@ -35,7 +35,5 @@ kernel_size: 5
 pac: False
 
 [output]
-filename_uncert: './mirabest_uncert.csv'
 test_data: 'MBFRConfident' 			#{'MBFRConfident', 'MBFRUncertain', 'MBHybrid'} for uncert calc
-pruning: 'Fisher' 			#{'Unpruned', 'SNR', 'Fisher'}
 path_out: '/share/nas2/dmohan/bbb/RadioGalaxies-BBB/exps_final/nonlinear_shuffle/gaussian/augment/vi_' 
