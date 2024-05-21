@@ -117,13 +117,6 @@ class Linear_BBB(nn.Module):
         self.b_post = Normal(self.b_mu.data, torch.exp(self.b_rho))
         self.log_post = self.w_post.log_prob(self.w).sum() + self.b_post.log_prob(self.b).sum()
         
-        ##print('new layer/minibatch')
-        #print(self.w_post.log_prob(self.w).shape)
-        ##print('posterior weights')
-        ##print(self.w_post.log_prob(self.w))
-        #print('not log posterior weights')
-        #print(self.w_post.sample())
-        
         return F.linear(input, self.w, self.b)
 
 class Conv_BBB(nn.Module):
