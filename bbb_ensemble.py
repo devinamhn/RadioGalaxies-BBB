@@ -1,36 +1,17 @@
 import sys
-import torch
-import torch.nn as nn
-import torch.nn.functional as F
-import torchvision
-import torchvision.transforms as transforms
-from torchvision import datasets
-from torch.utils.data.sampler import SubsetRandomSampler
-import torch.optim as optim
-from torchsummary import summary
 import numpy as np
 import matplotlib.pyplot as plt
-import seaborn as sns
-from torch.distributions import Normal
-from torch.optim.lr_scheduler import ReduceLROnPlateau, MultiplicativeLR, StepLR
-import pickle
-import torch.nn.utils.prune as prune
-import os
-import csv
-import pandas as pd
-from tabulate import tabulate
-from priors import GaussianPrior, GMMPrior
-from models import Classifier_BBB, Classifier_ConvBBB
-import mirabest
-from uncertainty import entropy_MI, overlapping, GMM_logits
-from utils import *
+import torch
+import torch.optim as optim
+from torch.optim.lr_scheduler import ReduceLROnPlateau
+import utils
 import wandb
-
 from pathlib import Path
+from models import Classifier_BBB, Classifier_ConvBBB
 from datamodules import MiraBestDataModule
 
 #vars = parse_args()
-config_dict, config = parse_config('config_augment.txt')
+config_dict, config = utils.parse_config('config_augment.txt')
 jobid = int(sys.argv[1])
 
 seed = config_dict['training']['seed'] + jobid
@@ -48,7 +29,7 @@ augment = config_dict['data']['augment']
 #imsize         = config_dict['training']['imsize']
 epochs         = config_dict['training']['epochs']
 nclass         = config_dict['training']['num_classes']
-learning_rate  = torch.tensor(config_dict['training']['lr0']) # Initial learning rate {1e-3, 1e-4, 1e-5} -- use larger LR with reduction = 'sum' 
+learning_rate  = torch.tensor(config_dict['training']['lr0'])
 momentum       = torch.tensor(config_dict['training']['momentum'])
 weight_decay   = torch.tensor(config_dict['training']['decay'])
 reduction      = config_dict['training']['reduction']
@@ -66,13 +47,8 @@ path_out = config_dict['output']['path_out']
 
 #output
 file_path = path_out + str(jobid) + '/'
-# temp_list = {0:5e-1, 1:1e-1, 2:5e-2, 3:1e-2, 4:5e-3, 5:1e-3, 6:5e-4, 7:1e-4, 8: 5e-5, 9:1e-5, 10:2e-1, 11:2e-2,12:2e-3, 13:2e-4, 14:2e-5, 15:1}
-# temp_index = int(jobid-1)
-# T = temp_list[temp_index]
 
 filename = config_dict['output']['filename_uncert']
-# test_data_uncert = config_dict['output']['test_data']
-# pruning_ = config_dict['output']['pruning']
 
 
 wandb_name = 'VI ' + str(jobid)
@@ -136,14 +112,16 @@ for i in range (1):
             
     for epoch in range(epochs):
     
-        train_loss, train_loss_c, train_loss_l, train_accs, train_complexity_conv, train_complexity_linear = train(model, train_loader, optimizer, device, T, burnin, reduction, pac)
+        train_loss, train_loss_c, train_loss_l, train_accs, train_complexity_conv, 
+        train_complexity_linear = utils.train(model, train_loader, optimizer, device, 
+                                    T, burnin, reduction, pac)
             
-        # print('Epoch: {}, Train Loss: {}, Train Accuracy: {}, NLL: {}, Complexity: {}'.format(epoch, np.sum(train_loss)/len(train_sampler), np.sum(train_accs)/len(train_sampler), np.sum(train_loss_l)/len(train_sampler), np.sum(train_loss_c)/len(train_sampler)))
         
         
-        test_loss, test_loss_c, test_loss_l, test_accs, test_complexity_conv, test_complexity_linear = validate(model, validation_loader, device, T, burnin, reduction, epoch, prior, prior_var, pac, file_path)
+        test_loss, test_loss_c, test_loss_l, test_accs, test_complexity_conv, 
+        test_complexity_linear = utils.validate(model, validation_loader, device, T, burnin,
+                                    reduction, epoch, prior, prior_var, pac, file_path)
     
-        # print('Epoch: {}, Test Loss: {}, Test Accuracy: {}, Test Error: {}, NLL: {}, Complexity:{}'.format(epoch, np.sum(test_loss)/len(valid_sampler), np.sum(test_accs)/len(valid_sampler), 100.*(1 - np.sum(test_accs)/len(valid_sampler)), np.sum(test_loss_l)/len(valid_sampler), np.sum(test_loss_c)/len(valid_sampler)))
         
         epoch_trainaccs.append(np.sum(train_accs)/len(train_sampler))
         epoch_testaccs.append(np.sum(test_accs)/len(valid_sampler))
@@ -209,11 +187,11 @@ wandb.log({"best_err_epoch": best_epoch, "best_err": 100.*(1 - best_acc)})
 model = Classifier_ConvBBB(input_ch, out_ch, kernel_size, prior_var, prior).to(device)
 
 model.load_state_dict(torch.load(file_path+"model.pt"))
-test_err= test(model, test_loader, device, T, burnin, reduction, pac)
+test_err= utils.test(model, test_loader, device, T, burnin, reduction, pac)
 
 err_arr = []
 for i in range(200):
-    test_err = test(model, test_loader, device, T, burnin, reduction, pac)
+    test_err = utils.test(model, test_loader, device, T, burnin, reduction, pac)
     err_arr.append(test_err)
 
 
